@@ -1,40 +1,48 @@
-// app/actions/obtenerFaltas.ts
 'use server'
 import dbConnect from '@/app/lib/dbConnect';
 import Falta from '@/app/models/Falta';
+import User from '@/app/models/User'; // 👈 Necesitamos esto para buscar tu ID
 import { auth } from '@/app/auth'; 
 
-// Definimos el tipo de dato que recibirá el Frontend (todo serializado)
+// Definimos el tipo de dato para el Frontend (actualizado a tu nuevo modelo)
 export type FaltaFrontend = {
   id: string;
   materia: string;
   fecha: string;
   descripcion: string;
-  tipo: string;
+  justificado: boolean; // 👇 Cambiamos 'tipo' por 'justificado'
 };
 
 export async function obtenerFaltas(): Promise<FaltaFrontend[]> {
   await dbConnect();
   const session = await auth();
 
+  // Si no hay sesión o email, devolvemos array vacío
   if (!session?.user?.email) return [];
 
-  const MI_EMAIL_ADMIN = 'tu_email@gmail.com'; 
-  const usuarioActual = session.user.email;
+  const usuarioEmail = session.user.email;
 
-  const filtro = usuarioActual === MI_EMAIL_ADMIN 
-    ? {} 
-    : { emailUsuario: usuarioActual };
+  // 1. Buscamos al usuario en la DB para obtener su _id
+  // (Porque en la tabla de Faltas guardamos el ID, no el email)
+  const usuarioDb = await User.findOne({ email: usuarioEmail });
 
-  // Usamos .lean() para obtener objetos JS planos, no documentos Mongoose pesados
+  if (!usuarioDb) {
+    return []; // Si el usuario no existe en la DB, no tiene faltas
+  }
+
+  // 2. Filtramos las faltas que tengan el ID de este usuario
+  const filtro = { usuario: usuarioDb._id };
+
+  // 3. Buscamos las faltas
   const faltas = await Falta.find(filtro).sort({ fecha: -1 }).lean();
 
-  // Mapeamos para cumplir con la interfaz FaltaFrontend
-  return faltas.map((falta) => ({
-    id: (falta._id as any).toString(), // _id a string
+  // 4. Mapeamos los datos para enviarlos al frontend
+  // Nota: 'falta' aquí es de tipo any/unknown al usar lean(), así que forzamos el tipado si hace falta
+  return faltas.map((falta: any) => ({
+    id: (falta._id).toString(),
     materia: falta.materia,
-    fecha: falta.fecha.toISOString(), // Date a string
-    descripcion: falta.descripcion,
-    tipo: falta.tipo
+    fecha: falta.fecha.toISOString(),
+    descripcion: falta.descripcion || '', // Evitamos null
+    justificado: falta.justificado // Boolean
   }));
 }

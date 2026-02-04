@@ -1,7 +1,20 @@
 // app/models/Falta.ts
-import mongoose, { Schema, model, models } from 'mongoose';
+import mongoose, { Schema, Document, Model, model, models } from 'mongoose';
 
-const FaltaSchema = new Schema({
+// 👇 ESTA ES LA PARTE IMPORTANTE QUE TE FALTABA
+// Definimos la forma de los datos (Interfaz) y la EXPORTAMOS para poder usarla fuera
+export interface IFalta extends Document {
+  usuario: mongoose.Types.ObjectId; // Referencia al ID del usuario
+  materia: string;
+  descripcion?: string; // El signo ? significa que es opcional
+  justificado: boolean;
+  fecha: Date;
+  createdAt?: Date; // Se crean solos por timestamps: true
+  updatedAt?: Date;
+}
+
+// 👇 Definimos el esquema de Mongoose usando la interfaz
+const FaltaSchema = new Schema<IFalta>({
   usuario: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -14,10 +27,9 @@ const FaltaSchema = new Schema({
   descripcion: {
     type: String,
   },
-  // 👇 TE FALTABA ESTO:
   justificado: {
     type: Boolean,
-    default: false, // Por defecto asumimos que no está justificada
+    default: false, 
   },
   fecha: {
     type: Date,
@@ -27,7 +39,7 @@ const FaltaSchema = new Schema({
   timestamps: true, // Esto añade createdAt y updatedAt automáticamente
 });
 
-// Evitamos recompilar el modelo si ya existe (Hot Reload de Next.js)
-const Falta = models.Falta || model('Falta', FaltaSchema);
+// 👇 Evitamos recompilar el modelo si ya existe (Hot Reload de Next.js)
+const Falta = (models.Falta as Model<IFalta>) || model<IFalta>('Falta', FaltaSchema);
 
 export default Falta;
