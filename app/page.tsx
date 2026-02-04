@@ -1,5 +1,6 @@
 // app/page.tsx
 import AuthForm from '@/app/components/AuthForm';
+export const dynamic = 'force-dynamic';
 
 export default function Home() {
   return (
