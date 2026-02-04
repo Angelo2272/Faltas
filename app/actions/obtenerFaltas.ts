@@ -1,7 +1,7 @@
 // app/actions/obtenerFaltas.ts
 'use server'
 import dbConnect from '@/app/lib/dbConnect';
-import Falta, { IFalta } from '@/app/models/Falta';
+import Falta from '@/app/models/Falta';
 import { auth } from '@/app/auth'; 
 
 // Definimos el tipo de dato que recibirá el Frontend (todo serializado)
