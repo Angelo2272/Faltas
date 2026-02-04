@@ -1,48 +1,45 @@
 'use server'
 import dbConnect from '@/app/lib/dbConnect';
-import Falta from '@/app/models/Falta';
-import User from '@/app/models/User'; // 👈 Necesitamos esto para buscar tu ID
+import Falta from '@/app/models/Falta'; // Asegúrate de que este import coincida con tu archivo real
+import User from '@/app/models/User';
 import { auth } from '@/app/auth'; 
 
-// Definimos el tipo de dato para el Frontend (actualizado a tu nuevo modelo)
 export type FaltaFrontend = {
   id: string;
   materia: string;
   fecha: string;
   descripcion: string;
-  justificado: boolean; // 👇 Cambiamos 'tipo' por 'justificado'
+  justificado: boolean;
 };
 
 export async function obtenerFaltas(): Promise<FaltaFrontend[]> {
-  await dbConnect();
-  const session = await auth();
+  // 👇 INICIO DEL CHALECO ANTIBALAS
+  try {
+    await dbConnect(); // Intentamos conectar
+    const session = await auth();
 
-  // Si no hay sesión o email, devolvemos array vacío
-  if (!session?.user?.email) return [];
+    // Si no hay usuario, devolvemos array vacío sin dar error
+    if (!session?.user?.email) return [];
 
-  const usuarioEmail = session.user.email;
+    const usuarioDb = await User.findOne({ email: session.user.email });
+    
+    // Si el usuario no está en la DB, array vacío
+    if (!usuarioDb) return [];
 
-  // 1. Buscamos al usuario en la DB para obtener su _id
-  // (Porque en la tabla de Faltas guardamos el ID, no el email)
-  const usuarioDb = await User.findOne({ email: usuarioEmail });
+    const faltas = await Falta.find({ usuario: usuarioDb._id }).sort({ fecha: -1 }).lean();
 
-  if (!usuarioDb) {
-    return []; // Si el usuario no existe en la DB, no tiene faltas
+    return faltas.map((falta: any) => ({
+      id: (falta._id).toString(),
+      materia: falta.materia,
+      fecha: falta.fecha.toISOString(),
+      descripcion: falta.descripcion || '',
+      justificado: falta.justificado
+    }));
+
+  } catch (error) {
+    // 👇 SI ALGO EXPLOTA (DB caída, contraseña mal, etc.)
+    console.error("❌ ERROR CRÍTICO EN OBTENER FALTAS:", error);
+    // Devolvemos lista vacía para que la página NO DE 404
+    return []; 
   }
-
-  // 2. Filtramos las faltas que tengan el ID de este usuario
-  const filtro = { usuario: usuarioDb._id };
-
-  // 3. Buscamos las faltas
-  const faltas = await Falta.find(filtro).sort({ fecha: -1 }).lean();
-
-  // 4. Mapeamos los datos para enviarlos al frontend
-  // Nota: 'falta' aquí es de tipo any/unknown al usar lean(), así que forzamos el tipado si hace falta
-  return faltas.map((falta: any) => ({
-    id: (falta._id).toString(),
-    materia: falta.materia,
-    fecha: falta.fecha.toISOString(),
-    descripcion: falta.descripcion || '', // Evitamos null
-    justificado: falta.justificado // Boolean
-  }));
 }

@@ -4,7 +4,6 @@ import { createContext, useContext, useState, useMemo, useEffect, ReactNode } fr
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 
-// Definimos la forma de nuestro contexto
 interface ColorModeContextType {
   toggleColorMode: () => void;
   mode: 'light' | 'dark';
@@ -15,31 +14,33 @@ const ColorModeContext = createContext<ColorModeContextType>({
   mode: 'light'
 });
 
-// Hook para usar el contexto fácilmente en cualquier componente
 export const useColorMode = () => useContext(ColorModeContext);
 
 export function ThemeProviderWrapper({ children }: { children: ReactNode }) {
-  // Estado para el modo (empezamos en light por defecto)
   const [mode, setMode] = useState<'light' | 'dark'>('light');
+  
+  // 👇 ESTADO NUEVO: Para saber si ya estamos en el navegador
+  const [mounted, setMounted] = useState(false);
 
-  // Intentamos leer la preferencia del usuario al cargar (opcional, persistencia básica)
   useEffect(() => {
+    // 1. Marcamos que ya estamos montados en el cliente
+    setMounted(true);
+
+    // 2. Ahora es seguro leer localStorage o window
     const savedMode = localStorage.getItem('themeMode') as 'light' | 'dark';
     if (savedMode) {
       setMode(savedMode);
     } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      // Si el sistema operativo del usuario está en oscuro, lo respetamos
       setMode('dark');
     }
   }, []);
 
-  // Función para cambiar el modo
   const colorMode = useMemo(
     () => ({
       toggleColorMode: () => {
         setMode((prevMode) => {
           const newMode = prevMode === 'light' ? 'dark' : 'light';
-          localStorage.setItem('themeMode', newMode); // Guardamos la preferencia
+          localStorage.setItem('themeMode', newMode);
           return newMode;
         });
       },
@@ -48,31 +49,30 @@ export function ThemeProviderWrapper({ children }: { children: ReactNode }) {
     [mode],
   );
 
-  // Creamos el tema de MUI dinámicamente
   const theme = useMemo(
     () =>
       createTheme({
         palette: {
           mode,
-          // Puedes personalizar colores aquí si quieres
           ...(mode === 'light'
-            ? {
-                // Colores para modo claro
-                background: { default: '#f3f4f6', paper: '#ffffff' },
-              }
-            : {
-                // Colores para modo oscuro
-                background: { default: '#121212', paper: '#1e1e1e' },
-              }),
+            ? { background: { default: '#f3f4f6', paper: '#ffffff' } }
+            : { background: { default: '#121212', paper: '#1e1e1e' } }),
         },
       }),
     [mode],
   );
 
+  // 👇 SI AÚN NO ESTAMOS MONTADOS, DEVOLVEMOS UN DIV INVISIBLE O NULL
+  // Esto evita que el servidor y el cliente se peleen por el CSS
+  if (!mounted) {
+    return <>{children}</>; 
+    // Nota: Retornar solo children sin ThemeProvider podría verse feo 0.1s, 
+    // pero evita el CRASH. Si da error de estilos, cambia esta línea por: return null;
+  }
+
   return (
     <ColorModeContext.Provider value={colorMode}>
       <ThemeProvider theme={theme}>
-        {/* CssBaseline es VITAL: resetea el CSS y pone el color de fondo oscuro global */}
         <CssBaseline />
         {children}
       </ThemeProvider>
