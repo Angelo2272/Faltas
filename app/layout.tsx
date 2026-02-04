@@ -1,6 +1,7 @@
+// app/layout.tsx
 import type { Metadata } from "next";
 import { AppRouterCacheProvider } from '@mui/material-nextjs/v13-appRouter';
-import { ThemeProviderWrapper } from "@/app/context/ThemeContext"; // 👈 Importamos nuestro wrapper
+import { ThemeProviderWrapper } from "@/app/context/ThemeContext";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -17,7 +18,6 @@ export default function RootLayout({
     <html lang="es">
       <body>
         <AppRouterCacheProvider>
-           {/* 👇 Sustituimos el ThemeProvider antiguo por nuestro Wrapper inteligente */}
            <ThemeProviderWrapper>
               {children}
            </ThemeProviderWrapper>
