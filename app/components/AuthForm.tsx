@@ -46,7 +46,7 @@ export default function AuthForm() {
             <label className="block text-sm font-medium text-black mb-1">Nombre</label>
             <input 
               name="name" type="text" placeholder="Tu nombre" required 
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+              className="w-full px-4 py-2 border border-black-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
             />
           </div>
         )}
@@ -56,7 +56,7 @@ export default function AuthForm() {
           <label className="block text-sm font-medium text-black mb-1">Email</label>
           <input 
             name="email" type="email" placeholder="correo@ejemplo.com" required 
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+            className="w-full px-4 py-2 border border-black-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
           />
         </div>
 
@@ -65,7 +65,7 @@ export default function AuthForm() {
           <label className="block text-sm font-medium text-black mb-1">Contraseña</label>
           <input 
             name="password" type="password" placeholder="••••••••" required 
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+            className="w-full px-4 py-2 border border-black-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
           />
         </div>
 
@@ -87,7 +87,7 @@ export default function AuthForm() {
       </form>
 
       {/* --- SWITCH LOGIN / REGISTRO --- */}
-      <div className="mt-6 text-center text-sm text-gray-600">
+      <div className="mt-6 text-center text-sm text-black-600">
         {isLogin ? "¿No tienes cuenta? " : "¿Ya tienes cuenta? "}
         <button 
           onClick={() => { setIsLogin(!isLogin); setError(null); }}

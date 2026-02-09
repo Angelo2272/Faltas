@@ -1,12 +1,15 @@
-import { auth } from '@/app/auth'; 
 import { redirect } from 'next/navigation';
 import dbConnect from '@/app/lib/dbConnect';
 import Falta from '@/app/models/Falta';
+import User from '@/app/models/User'; // 1. Importamos el modelo User para sacar el nombre
 import FormularioFalta from '@/app/components/FormularioFalta';
 import ListaFaltas from '@/app/components/ListaFaltas';
-import ThemeToggle from '@/app/components/ThemeToggle'; // 👈 1. IMPORTAMOS EL TOGGLE
+import ThemeToggle from '@/app/components/ThemeToggle'; 
 import { Container, Typography, Paper, Box, Button } from '@mui/material';
 import LogoutIcon from '@mui/icons-material/Logout';
+
+// 👇 2. IMPORTAMOS NUESTRA AUTENTICACIÓN MANUAL
+import { verifySession, deleteSession } from '@/app/lib/session';
 
 // --- Funciones auxiliares ---
 function serializarFaltas(faltas: any[]) {
@@ -29,16 +32,24 @@ function agruparPorMateria(listaFaltas: any[]) {
 }
 
 export default async function DashboardPage() {
-  const session = await auth();
+  // 👇 3. REEMPLAZO DE NEXTAUTH
+  const session = await verifySession();
   
-  if (!session || !session.user) {
-    redirect('/');
+  // Verificamos si hay sesión y si tiene userId
+  if (!session || !session.userId) {
+    redirect('/login');
   }
 
   await dbConnect();
   
-  // Obtenemos faltas del usuario
-  const faltasRaw = await Falta.find({ usuario: session.user.id }).sort({ fecha: -1 });
+  // 👇 4. RECUPERAR DATOS DEL USUARIO (NOMBRE)
+  // Como la cookie solo tiene el ID, buscamos el nombre en la DB
+  const usuarioInfo = await User.findById(session.userId).select('name');
+  const nombreUsuario = usuarioInfo?.name || 'Estudiante';
+
+  // 👇 5. USAMOS session.userId EN LA CONSULTA
+  const faltasRaw = await Falta.find({ usuario: session.userId }).sort({ fecha: -1 });
+  
   const faltas = serializarFaltas(faltasRaw);
   const faltasAgrupadas = agruparPorMateria(faltas);
   const materias = Object.keys(faltasAgrupadas);
@@ -53,21 +64,19 @@ export default async function DashboardPage() {
             Control de Asistencias
           </Typography>
           <Typography variant="subtitle1" color="text.secondary">
-            Bienvenido, {session.user.name}
+            Bienvenido, {nombreUsuario} {/* Usamos la variable que buscamos arriba */}
           </Typography>
         </Box>
 
-        {/* 2. AGRUPAMOS LOS BOTONES DE ACCIÓN (MODO OSCURO Y SALIR) */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           
-          {/* Botón Sol/Luna */}
           <ThemeToggle />
 
+          {/* 👇 6. LOGOUT MANUAL */}
           <form action={async () => {
             "use server"
-            // Nota: Asegúrate de que la ruta sea correcta según tu proyecto (@/auth o @/app/auth)
-            const { signOut } = await import("@/app/auth")
-            await signOut()
+            await deleteSession(); // Borra la cookie
+            redirect('/login');    // Redirige al login
           }}>
             <Button color="error" endIcon={<LogoutIcon />} type="submit">
               Salir
@@ -85,12 +94,11 @@ export default async function DashboardPage() {
         <FormularioFalta />
       </Paper>
 
-      {/* SECCIÓN 2: LISTA ACORDEÓN (MUI) */}
+      {/* SECCIÓN 2: LISTA */}
       <Box>
         <Typography variant="h5" gutterBottom sx={{ fontWeight: 'medium' }}>
           Tu Historial por Materias
         </Typography>
-        {/* Aquí pasamos los datos al componente visual */}
         <ListaFaltas faltasAgrupadas={faltasAgrupadas} materias={materias} />
       </Box>
 

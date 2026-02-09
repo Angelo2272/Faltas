@@ -3,23 +3,22 @@
 
 import dbConnect from '@/app/lib/dbConnect';
 import Falta from '@/app/models/Falta';
-import { auth } from '@/app/auth';
 import { revalidatePath } from 'next/cache';
+import { verifySession } from '@/app/lib/session'; // <--- Importas la nueva función
 
 export async function crearFalta(formData: FormData) {
-  const session = await auth();
+  // 1. Verificar sesión
+  const session = await verifySession();
 
-  if (!session || !session.user?.id) {
+  // 2. Comprobar si hay usuario (userId viene del return de verifySession)
+  if (!session || !session.userId) {
     return { error: "No autorizado" };
   }
 
   await dbConnect();
 
-  // 👇 AQUÍ ESTÁ EL CAMBIO: Añadimos "as string"
   const materia = formData.get('materia') as string;
   const descripcion = formData.get('descripcion') as string;
-  
-  // El checkbox devuelve 'on' si está marcado, o null si no lo está.
   const justificado = formData.get('justificado') === 'on';
 
   try {
@@ -27,7 +26,7 @@ export async function crearFalta(formData: FormData) {
       materia,
       descripcion,
       justificado,
-      usuario: session.user.id,
+      usuario: session.userId, // <--- Usas el ID desencriptado
       fecha: new Date(),
     });
 

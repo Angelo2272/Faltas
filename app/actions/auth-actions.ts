@@ -1,50 +1,53 @@
 'use server'
-import dbConnect from '@/app/lib/dbConnect';
-import User from '@/app/models/User';
-import { signIn } from '@/app/auth'; // Tu archivo de NextAuth
-import { AuthError } from 'next-auth';
 
-// --- ACCIÓN DE REGISTRO ---
+import { createSession } from '@/app/lib/session'
+import dbConnect from '@/app/lib/dbConnect'
+import User from '@/app/models/User'
+import bcrypt from 'bcryptjs'
+import { redirect } from 'next/navigation'
+
+// --- REGISTER ---
 export async function register(formData: FormData) {
-  await dbConnect();
-  
-  const name = formData.get('name') as string;
-  const email = formData.get('email') as string;
-  const password = formData.get('password') as string;
+  await dbConnect()
 
-  if (!email || !password || !name) return { error: "Faltan datos" };
+  const name = formData.get('name') as string
+  const email = formData.get('email') as string
+  const password = formData.get('password') as string
 
-  // 1. Verificar si ya existe
-  const existe = await User.findOne({ email });
-  if (existe) return { error: "El usuario ya existe" };
+  if (!name || !email || !password) return { error: 'Faltan datos' }
 
-  // 2. Crear usuario (En app real, encripta el password con bcrypt aquí)
-  await User.create({ name, email, password, role: 'STUDENT' });
+  // Verificar si existe
+  const existe = await User.findOne({ email })
+  if (existe) return { error: 'El usuario ya existe' }
 
-  // 3. Auto-login después de registrarse (Opcional)
-  try {
-    await signIn('credentials', { email, password, redirectTo: '/dashboard' });
-  } catch (error) {
-    if (error instanceof AuthError) return { error: "Error al iniciar sesión auto" };
-    throw error; // Necesario para que el redirect funcione
-  }
+  // Hash password
+  const hashedPassword = await bcrypt.hash(password, 10)
+
+  // Crear usuario
+  const newUser = await User.create({ name, email, password: hashedPassword, role: 'STUDENT' })
+
+  // Crear sesión y redirigir
+  await createSession(newUser._id.toString(), newUser.role)
+  redirect('/dashboard')
 }
 
-// --- ACCIÓN DE LOGIN ---
+// --- LOGIN ---
 export async function login(formData: FormData) {
-  const email = formData.get('email') as string;
-  const password = formData.get('password') as string;
+  await dbConnect()
 
-  try {
-    // Esto llama a tu configuración de auth.ts
-    await signIn('credentials', { email, password, redirectTo: '/dashboard' });
-  } catch (error) {
-    if (error instanceof AuthError) {
-      switch (error.type) {
-        case 'CredentialsSignin': return { error: "Credenciales incorrectas" };
-        default: return { error: "Algo salió mal" };
-      }
-    }
-    throw error;
-  }
+  const email = formData.get('email') as string
+  const password = formData.get('password') as string
+
+  if (!email || !password) return { error: 'Faltan credenciales' }
+
+  const user = await User.findOne({ email }).select('+password')
+
+  if (!user || !user.password) return { error: 'Credenciales inválidas' }
+
+  const isMatch = await bcrypt.compare(password, user.password)
+
+  if (!isMatch) return { error: 'Credenciales inválidas' }
+
+  await createSession(user._id.toString(), user.role)
+  redirect('/dashboard')
 }
