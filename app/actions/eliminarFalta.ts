@@ -2,30 +2,31 @@
 
 import dbConnect from '@/app/lib/dbConnect';
 import Falta from '@/app/models/Falta';
-import { auth } from '@/app/auth';
 import { revalidatePath } from 'next/cache';
+import { verifySession } from '@/app/lib/session'; // 1. Cambiamos el import
 
 export async function eliminarFalta(idFalta: string) {
-  const session = await auth();
+  // 2. Obtenemos la sesión manual
+  const session = await verifySession();
 
-  if (!session || !session.user?.id) {
+  // 3. Verificamos usando session.userId
+  if (!session || !session.userId) {
     return { error: "No autorizado" };
   }
 
   await dbConnect();
 
   try {
-    // Buscamos y borramos, asegurando que la falta pertenezca al usuario logueado
+    // Buscamos y borramos asegurando que sea del usuario actual
     const resultado = await Falta.findOneAndDelete({ 
       _id: idFalta, 
-      usuario: session.user.id 
+      usuario: session.userId // 4. Usamos el ID correcto
     });
 
     if (!resultado) {
       return { error: "Falta no encontrada o no tienes permiso" };
     }
 
-    // Recargamos la pantalla para que desaparezca al instante
     revalidatePath('/dashboard');
     return { success: true };
 

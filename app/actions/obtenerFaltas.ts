@@ -1,8 +1,8 @@
 'use server'
 import dbConnect from '@/app/lib/dbConnect';
-import Falta from '@/app/models/Falta'; // Asegúrate de que este import coincida con tu archivo real
-import User from '@/app/models/User';
-import { auth } from '@/app/auth'; 
+import Falta from '@/app/models/Falta';
+// import User from '@/app/models/User'; // 👈 YA NO LO NECESITAS AQUÍ
+import { verifySession } from '@/app/lib/session'; // 1. Importamos verifySession
 
 export type FaltaFrontend = {
   id: string;
@@ -13,20 +13,19 @@ export type FaltaFrontend = {
 };
 
 export async function obtenerFaltas(): Promise<FaltaFrontend[]> {
-  // 👇 INICIO DEL CHALECO ANTIBALAS
   try {
-    await dbConnect(); // Intentamos conectar
-    const session = await auth();
-
-    // Si no hay usuario, devolvemos array vacío sin dar error
-    if (!session?.user?.email) return [];
-
-    const usuarioDb = await User.findOne({ email: session.user.email });
+    await dbConnect();
     
-    // Si el usuario no está en la DB, array vacío
-    if (!usuarioDb) return [];
+    // 2. Obtenemos la sesión manual
+    const session = await verifySession();
 
-    const faltas = await Falta.find({ usuario: usuarioDb._id }).sort({ fecha: -1 }).lean();
+    // 3. Verificamos si hay sesión y ID (ya no usamos email)
+    if (!session || !session.userId) return [];
+
+    // 4. Usamos session.userId DIRECTAMENTE (Ahorramos la consulta a User.findOne)
+    const faltas = await Falta.find({ usuario: session.userId })
+      .sort({ fecha: -1 })
+      .lean();
 
     return faltas.map((falta: any) => ({
       id: (falta._id).toString(),
@@ -37,9 +36,7 @@ export async function obtenerFaltas(): Promise<FaltaFrontend[]> {
     }));
 
   } catch (error) {
-    // 👇 SI ALGO EXPLOTA (DB caída, contraseña mal, etc.)
     console.error("❌ ERROR CRÍTICO EN OBTENER FALTAS:", error);
-    // Devolvemos lista vacía para que la página NO DE 404
     return []; 
   }
 }

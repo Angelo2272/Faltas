@@ -1,26 +1,27 @@
 // app/api/faltas/route.ts
 import { NextResponse } from 'next/server';
-import { auth } from '@/app/auth'; // <--- Importamos la sesión de NextAuth
 import dbConnect from '@/app/lib/dbConnect';
 import Falta from '@/app/models/Falta';
+import { verifySession } from '@/app/lib/session'; // 1. Importamos verifySession
 
 // ----------------------------------------------------------------------
 // GET: Obtener SOLO las faltas del usuario logueado
 // ----------------------------------------------------------------------
 export async function GET() {
   try {
-    // 1. Verificar sesión (Seguridad)
-    const session = await auth();
+    // 2. Verificar sesión manual
+    const session = await verifySession();
     
-    if (!session || !session.user?.id) {
+    // 3. Usamos session.userId
+    if (!session || !session.userId) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
     await dbConnect();
 
-    // 2. Buscar en la BD filtrando por el ID del usuario
-    const faltas = await Falta.find({ usuario: session.user.id })
-      .sort({ fecha: -1 }); // Ordenar: las más recientes primero
+    // 4. Filtrar por session.userId
+    const faltas = await Falta.find({ usuario: session.userId })
+      .sort({ fecha: -1 });
 
     return NextResponse.json(faltas);
 
@@ -35,22 +36,20 @@ export async function GET() {
 // ----------------------------------------------------------------------
 export async function POST(req: Request) {
   try {
-    // 1. Verificar sesión
-    const session = await auth();
+    // 1. Verificar sesión manual
+    const session = await verifySession();
 
-    if (!session || !session.user?.id) {
+    if (!session || !session.userId) {
       return NextResponse.json({ error: 'Debes iniciar sesión' }, { status: 401 });
     }
 
     await dbConnect();
 
-    // 2. Leer los datos que vienen del formulario
     const body = await req.json();
 
-    // 3. Crear la falta INYECTANDO el ID del usuario (evita fraudes)
     const nuevaFalta = await Falta.create({
-      ...body,                  // materia, fecha, justificado, etc.
-      usuario: session.user.id  // <--- ¡Esto es lo más importante!
+      ...body,
+      usuario: session.userId  // 2. Usamos el ID correcto de la sesión
     });
 
     return NextResponse.json(nuevaFalta, { status: 201 });
